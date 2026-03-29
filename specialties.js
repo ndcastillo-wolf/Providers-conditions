@@ -35,7 +35,7 @@ function generateConditionsToProvidersBio() {
 
   // Get data from BP to FA (adjust columns if needed)
   const firstCol = 68; // BP = column 68
-  const numCols = 90;  // BP to FA ≈ 38 columns (ADJUST IF DIFFERENT)
+  const numCols = 38;  // BP to FA ≈ 38 columns (adjust if different)
   const data = cleanSheet.getRange(2, firstCol, lastRow - 1, numCols).getValues();
 
   // Process each provider row
