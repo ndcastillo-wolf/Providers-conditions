@@ -25,7 +25,7 @@ function getWeeklyAvailability() {
   // ====================== 2. Obtener datos del rango FC:FI ======================
   // FC = columna 84, FI = columna 90  →  7 columnas
   const firstCol = 84;   // FC
-  const numCols = 7;     // FC hasta FI
+  const numCols = 91;     // FC hasta FI
 
   const availabilityData = cleanSheet.getRange(2, firstCol, lastRow - 1, numCols).getValues();
 
