@@ -6,74 +6,127 @@ function generateConditionsToProvidersBio() {
   const conditionsSheet = ss.getSheetByName('Conditions');
 
   if (!cleanSheet || !providersSheet || !conditionsSheet) {
-    console.log("Missing required sheet");
+    console.error("❌ Faltan hojas requeridas: 'clean data', 'providers bio' o 'Conditions'");
     return;
   }
 
-  // Get condition labels (90 rows)
-  const labels = conditionsSheet.getRange('A2:A91').getValues().flat();
+  // 1. Obtener labels de condiciones (A2:A91)
+  const labels = conditionsSheet.getRange('A2:A91').getValues().flat().map(label => 
+    (label || '').toString().trim()
+  );
 
-  // Get real last row safely (using email column E=5 as anchor)
-  const emailCol = 5;
-  const maxRows = cleanSheet.getMaxRows();
-  const emailValues = cleanSheet.getRange(2, emailCol, maxRows - 1, 1).getValues().flat();
+  // 2. Detectar última fila real usando columna Email (E = 5)
+  const emailCol = 5; // Columna E
+  const lastRowWithData = getLastRowWithData(cleanSheet, emailCol);
 
-  let lastRow = 1;
-  for (let i = emailValues.length - 1; i >= 0; i--) {
-    if (emailValues[i] !== '' && emailValues[i] != null) {
-      lastRow = i + 2;
-      break;
-    }
-  }
-
-  if (lastRow < 2) {
-    console.log("No data found in clean data");
+  if (lastRowWithData < 2) {
+    console.warn("⚠️ No se encontró data en la hoja 'clean data'");
     return;
   }
 
-  console.log(`Processing rows 2 to ${lastRow}`);
+  console.log(`✅ Procesando filas 2 a ${lastRowWithData} (${lastRowWithData - 1} proveedores)`);
 
-  // Get data from BP to FA (adjust columns if needed)
-  const firstCol = 68; // BP = column 68
-  const numCols = 38;  // BP to FA ≈ 38 columns (adjust if different)
-  const data = cleanSheet.getRange(2, firstCol, lastRow - 1, numCols).getValues();
+  // 3. Obtener datos de las columnas BP a FA (ajusta si cambia)
+  const firstCol = 68;   // BP = columna 68
+  const numCols = 38;    // BP hasta FA ≈ 38 columnas
 
-  // Process each provider row
-  const output = data.map(row => {
-    let specialties = [];
-    let ableWilling = [];
+  const data = cleanSheet.getRange(2, firstCol, lastRowWithData - 1, numCols).getValues();
+
+  // 4. Procesar cada fila (cada proveedor)
+  const output = data.map((row, rowIndex) => {
+    const specialties = new Set();   // Usamos Set para evitar duplicados
+    const ableWilling = new Set();
 
     row.forEach((cell, i) => {
-      const value = (cell || '').toString().trim().toLowerCase();
-      const label = labels[i] || "";
+      const value = normalizeString(cell);
+      const label = labels[i];
 
       if (!label) return;
 
-      if (value === "specialty") {
-        specialties.push(label);
-      } else if (value === "able/willing to see") {
-        ableWilling.push(label);
+      if (isSpecialty(value)) {
+        specialties.add(label);
+      } else if (isAbleWilling(value)) {
+        ableWilling.add(label);
       }
     });
 
+    // Opcional: ordenar alfabéticamente
+    // const sortedSpecialties = Array.from(specialties).sort().join(', ');
+    // const sortedAble = Array.from(ableWilling).sort().join(', ');
+
     return [
-      specialties.join(', '),   // K: Specialties
-      ableWilling.join(', ')    // L: Able/Willing to see
+      Array.from(specialties).join(', '),     // Columna K
+      Array.from(ableWilling).join(', ')      // Columna L
     ];
   });
 
-  // Remove trailing empty rows
+  // 5. Eliminar filas completamente vacías al final
   while (output.length > 0 && output[output.length - 1].every(v => v === '')) {
     output.pop();
   }
 
   if (output.length === 0) {
-    console.log("No conditions found");
+    console.warn("⚠️ No se generaron condiciones");
     return;
   }
 
-  console.log(`Writing ${output.length} rows to K & L`);
+  // 6. Limpiar columnas K y L antes de escribir (evita datos residuales)
+  const maxRowsProviders = providersSheet.getLastRow();
+  if (maxRowsProviders >= 3) {
+    providersSheet.getRange(3, 11, maxRowsProviders - 2, 2).clearContent(); // Limpia K y L desde fila 3
+  }
 
-  // Write to K (11) and L (12), starting row 3
+  // 7. Escribir resultados
   providersSheet.getRange(3, 11, output.length, 2).setValues(output);
+
+  console.log(`✅ Escritas ${output.length} filas en columnas K y L de 'providers bio'`);
+}
+
+// ====================== FUNCIONES AUXILIARES ======================
+
+/**
+ * Normaliza strings: trim + lowercase + quita espacios extra
+ */
+function normalizeString(value) {
+  if (value == null) return '';
+  return value.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Detecta variaciones de "specialty"
+ */
+function isSpecialty(str) {
+  const normalized = normalizeString(str);
+  return normalized === 'specialty' || 
+         normalized.includes('specialty');
+}
+
+/**
+ * Detecta variaciones de "able/willing to see"
+ */
+function isAbleWilling(str) {
+  const normalized = normalizeString(str);
+  return normalized.includes('able') && 
+         (normalized.includes('willing') || normalized.includes('will')) && 
+         (normalized.includes('see') || normalized.includes('to see'));
+}
+
+/**
+ * Obtiene la última fila con datos reales en una columna específica
+ * (Más robusto que getLastRow())
+ */
+function getLastRowWithData(sheet, column) {
+  const maxRows = sheet.getMaxRows();
+  // Leemos desde fila 2 hasta el final
+  const values = sheet.getRange(2, column, maxRows - 1, 1).getValues().flat();
+
+  for (let i = values.length - 1; i >= 0; i--) {
+    const cell = values[i];
+    if (cell != null && 
+        cell.toString().trim() !== '' && 
+        cell !== false) {           // false por checkboxes
+      return i + 2;                 // +2 porque empezamos en fila 2
+    }
+  }
+  return 1; // No hay datos
 }
