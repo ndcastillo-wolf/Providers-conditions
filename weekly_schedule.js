@@ -5,107 +5,97 @@ function getWeeklyAvailability() {
   const providersSheet = ss.getSheetByName('providers bio');
 
   if (!cleanSheet || !providersSheet) {
-    console.error("❌ Faltan hojas requeridas: 'clean data' o 'providers bio'");
+    console.error("❌ Faltan hojas requeridas");
     return;
   }
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  // ====================== 1. Detectar última fila de forma robusta ======================
-  const emailCol = 5;           // Columna E (Email) - ancla principal
-  const availabilityLastCol = 90; // Columna FI (última de disponibilidad)
+  console.log("🔍 === INICIO getWeeklyAvailability ===");
 
-  let lastRow = getLastRowWithData(cleanSheet, emailCol);
-  const lastRowByAvailability = getLastRowWithData(cleanSheet, availabilityLastCol);
+  // 1. Información básica de la hoja
+  const lastRowSheet = cleanSheet.getLastRow();
+  const maxRowsSheet = cleanSheet.getMaxRows();
+  console.log(`📊 Hoja 'clean data' → LastRow: ${lastRowSheet} | MaxRows: ${maxRowsSheet}`);
 
-  // Tomamos la fila más grande para no perder datos de disponibilidad
-  lastRow = Math.max(lastRow, lastRowByAvailability);
+  // 2. Definir rango FC:FI
+  const firstCol = 159;  // FC
+  const numCols = 7;    // FI = 84 + 6
 
-  if (lastRow < 2) {
-    console.warn("⚠️ No se encontraron datos en la hoja 'clean data'");
-    return;
+  console.log(`🎯 Leyendo columnas FC:${String.fromCharCode(64 + firstCol + numCols - 1)} (${firstCol} a ${firstCol + numCols - 1})`);
+
+  // 3. Leer los datos
+  const availabilityData = cleanSheet.getRange(2, firstCol, lastRowSheet - 1, numCols).getValues();
+
+  console.log(`📥 Se leyeron ${availabilityData.length} filas × ${availabilityData[0]?.length || 0} columnas`);
+
+  // 4. Debugging: Mostrar contenido de las primeras 3 filas y la última fila
+  console.log("🔎 Contenido de las primeras 3 filas (FC:FI):");
+  for (let i = 0; i < Math.min(3, availabilityData.length); i++) {
+    console.log(`   Fila ${i+2}: ${JSON.stringify(availabilityData[i])}`);
   }
 
-  console.log(`✅ Procesando disponibilidad semanal de filas 2 a ${lastRow} (${lastRow - 1} proveedores)`);
+  if (availabilityData.length > 3) {
+    console.log(`   ...`);
+    console.log(`   Última fila (${lastRowSheet}): ${JSON.stringify(availabilityData[availabilityData.length - 1])}`);
+  }
 
-  // ====================== 2. Obtener datos del rango FC:FI ======================
-  const firstCol = 84;   // FC = columna 84
-  const numCols = 7;     // FC hasta FI = 7 columnas (Lunes a Domingo)
-
-  const availabilityData = cleanSheet.getRange(2, firstCol, lastRow - 1, numCols).getValues();
-
-  console.log(`📊 Leyendo ${availabilityData.length} filas × ${numCols} columnas (FC:FI)`);
-
-  // ====================== 3. Procesar cada proveedor ======================
-  const output = availabilityData.map(row => {
+  // 5. Procesar cada fila
+  const output = availabilityData.map((row, index) => {
     const dayAvailability = [];
+    const rowNum = index + 2;
 
     row.forEach((cell, i) => {
       const times = normalizeTimeSlots(cell);
+      const dayName = daysOfWeek[i];
+
       if (times.length > 0) {
-        const dayName = daysOfWeek[i];
         dayAvailability.push(`${dayName}(${times.join(', ')})`);
+        console.log(`   → Fila ${rowNum} | ${dayName}: ${times.join(', ')}`);
+      } else {
+        // Log solo si quieres ver los días vacíos (puedes comentarlo después)
+        // console.log(`   → Fila ${rowNum} | ${dayName}: (vacío)`);
       }
     });
 
-    return [dayAvailability.join(', ')];   // Columna E
+    const result = dayAvailability.join(', ');
+    if (result) {
+      console.log(`   ✓ Fila ${rowNum} → "${result}"`);
+    }
+
+    return [result];
   });
 
-  // ====================== 4. Limpiar columna E antes de escribir ======================
-  const lastRowProviders = providersSheet.getLastRow();
-  if (lastRowProviders >= 2) {
-    providersSheet.getRange(2, 5, lastRowProviders - 1, 1).clearContent();
+  // 6. Escribir en Providers Bio
+  console.log(`\n✍️ Preparando escritura de ${output.length} filas en columna E`);
+
+  const providersLastRow = providersSheet.getLastRow();
+  if (providersLastRow >= 2) {
+    console.log(`🧹 Limpiando columna E desde fila 2 hasta ${providersLastRow}`);
+    providersSheet.getRange(3, 5, providersLastRow - 1, 1).clearContent();
   }
 
-  // ====================== 5. Escribir resultados en columna E (desde fila 2) ======================
-  providersSheet.getRange(2, 5, output.length, 1).setValues(output);
+  providersSheet.getRange(3, 5, output.length, 1).setValues(output);
 
-  console.log(`✅ Finalizado: Escritas ${output.length} filas en columna E de 'providers bio'`);
+  console.log(`✅ FINALIZADO: Se escribieron ${output.length} filas en columna E de 'providers bio'`);
+  console.log("🔚 === FIN getWeeklyAvailability ===\n");
 }
 
-// ====================== FUNCIONES AUXILIARES ======================
-
-/**
- * Normaliza los horarios y devuelve array limpio
- * Ejemplo: "8am - 9am, 9pm - 10pm" → ["8-9am", "9-10pm"]
- */
+// ====================== AUXILIAR ======================
 function normalizeTimeSlots(cell) {
   if (!cell) return [];
 
   const text = cell.toString().trim();
   if (text === '') return [];
 
-  const slots = text.split(/[,;]/).map(slot => slot.trim());
+  const slots = text.split(/[,;]/);
 
-  const cleanedSlots = [];
+  const cleaned = slots.map(slot => {
+    return slot.trim()
+      .replace(/\s*-\s*/g, '-')
+      .replace(/(\d)\s*(am|pm)/gi, '$1$2')
+      .replace(/(\d+):00(am|pm)/gi, '$1$2');
+  }).filter(slot => slot.length > 0);
 
-  for (let slot of slots) {
-    if (!slot) continue;
-
-    let cleaned = slot
-      .replace(/\s*-\s*/g, '-')                    // Normaliza guiones
-      .replace(/(\d)\s*(am|pm)/gi, '$1$2')         // Quita espacio antes de am/pm
-      .replace(/(\d+):00(am|pm)/gi, '$1$2')        // 8:00am → 8am
-      .trim();
-
-    if (cleaned) cleanedSlots.push(cleaned);
-  }
-
-  return cleanedSlots;
-}
-
-/**
- * Detecta la última fila con datos reales en una columna específica
- */
-function getLastRowWithData(sheet, column) {
-  const maxRows = Math.min(sheet.getMaxRows(), 10000); // Límite seguro
-  const values = sheet.getRange(2, column, maxRows - 1, 1).getValues().flat();
-
-  for (let i = values.length - 1; i >= 0; i--) {
-    const val = values[i];
-    if (val != null && String(val).trim() !== '') {
-      return i + 2;
-    }
-  }
-  return 1;
+  return cleaned;
 }
