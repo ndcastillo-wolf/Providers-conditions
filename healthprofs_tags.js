@@ -48,6 +48,7 @@ function dummy() {
 function refreshAllPlatforms() {
   generateConditionsToProvidersBio(); // FIRST it generates the conditions (able to see, specialties) ffor the provers bio tab 
   addActiveStatesToProvidersHealthprof(); // checks the active states for providers 
+  getWeeklyAvailability(); // gets the weekly availability and writes it to the providers bio tab
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const bioSheet = ss.getSheetByName("providers bio");
   if (!bioSheet) return uiAlert("Sheet 'providers bio' not found!");
