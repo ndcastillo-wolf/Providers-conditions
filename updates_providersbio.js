@@ -10,11 +10,11 @@ function generateConditionsToProvidersBio() {
     return;
   }
 
-  // Obtener labels de condiciones (A2:A91)
+  // Get conditions (A2:A91)
   const labelsRange = conditionsSheet.getRange('A2:A91');
   const labels = labelsRange.getValues().flat().map(label => label.toString().trim());
 
-  // Calcular última fila real usando columna E (Email) como anchor
+  // using email as hook to calculate last row 
   const lastRow = getLastRowWithData_(cleanSheet, 5); // columna E = 5
 
   if (lastRow < 2) {
@@ -24,14 +24,14 @@ function generateConditionsToProvidersBio() {
 
   console.log(`Procesando filas 2 a ${lastRow} (${lastRow - 1} proveedores)`);
 
-  // ==================== AJUSTA ESTOS VALORES SI ES NECESARIO ====================
-  const firstConditionCol = 68;   // Columna BP (68)
-  const numConditionCols = 90;    // Cantidad de columnas de condiciones (verifica que sea correcto)
+  // ==================== ADJUST VALUES IF REQUIRED  ====================
+  const firstConditionCol = 68;   // Column BP (68)
+  const numConditionCols = 90;    // Conditions Column
 
-  // Leer solo hasta la última fila real
+  // Reads only the very final row 
   const data = cleanSheet.getRange(2, firstConditionCol, lastRow - 1, numConditionCols).getValues();
 
-  // Procesar cada fila
+  // row processing logic 
   const output = [];
 
   for (let rowIdx = 0; rowIdx < data.length; rowIdx++) {
@@ -58,7 +58,7 @@ function generateConditionsToProvidersBio() {
     ]);
   }
 
-  // Escribir en la hoja 'providers bio' (columnas K=11 y L=12, empezando en fila 3)
+  // Writing for 'providers bio' (columns K=11 y L=12, starting row 3)
   if (output.length > 0) {
     providersSheet.getRange(3, 11, output.length, 2).setValues(output);
     console.log(`✅ Escrito correctamente ${output.length} filas en columnas K y L`);
