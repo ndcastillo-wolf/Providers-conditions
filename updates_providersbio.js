@@ -6,74 +6,76 @@ function generateConditionsToProvidersBio() {
   const conditionsSheet = ss.getSheetByName('Conditions');
 
   if (!cleanSheet || !providersSheet || !conditionsSheet) {
-    console.log("Missing required sheet");
+    SpreadsheetApp.getUi().alert("Faltan hojas requeridas: 'clean data', 'providers bio' o 'Conditions'");
     return;
   }
 
-  // Get condition labels (90 rows)
-  const labels = conditionsSheet.getRange('A2:A91').getValues().flat();
+  // Obtener labels de condiciones (A2:A91)
+  const labelsRange = conditionsSheet.getRange('A2:A91');
+  const labels = labelsRange.getValues().flat().map(label => label.toString().trim());
 
-  // Get real last row safely (using email column E=5 as anchor)
-  const emailCol = 5;
-  const maxRows = cleanSheet.getMaxRows();
-  const emailValues = cleanSheet.getRange(2, emailCol, maxRows - 1, 1).getValues().flat();
-
-  let lastRow = 1;
-  for (let i = emailValues.length - 1; i >= 0; i--) {
-    if (emailValues[i] !== '' && emailValues[i] != null) {
-      lastRow = i + 2;
-      break;
-    }
-  }
+  // Calcular última fila real usando columna E (Email) como anchor
+  const lastRow = getLastRowWithData_(cleanSheet, 5); // columna E = 5
 
   if (lastRow < 2) {
-    console.log("No data found in clean data");
+    console.log("No se encontraron datos en 'clean data'");
     return;
   }
 
-  console.log(`Processing rows 2 to ${lastRow}`);
+  console.log(`Procesando filas 2 a ${lastRow} (${lastRow - 1} proveedores)`);
 
-  // Get data from BP to FA (adjust columns if needed)
-  const firstCol = 68; // BP = column 68
-  const numCols = 90;  // BP to FA ≈ 38 columns (adjust if different)
-  const data = cleanSheet.getRange(2, firstCol, lastRow - 1, numCols).getValues();
+  // ==================== AJUSTA ESTOS VALORES SI ES NECESARIO ====================
+  const firstConditionCol = 68;   // Columna BP (68)
+  const numConditionCols = 90;    // Cantidad de columnas de condiciones (verifica que sea correcto)
 
-  // Process each provider row
-  const output = data.map(row => {
+  // Leer solo hasta la última fila real
+  const data = cleanSheet.getRange(2, firstConditionCol, lastRow - 1, numConditionCols).getValues();
+
+  // Procesar cada fila
+  const output = [];
+
+  for (let rowIdx = 0; rowIdx < data.length; rowIdx++) {
+    const row = data[rowIdx];
     let specialties = [];
     let ableWilling = [];
 
-    row.forEach((cell, i) => {
-      const value = (cell || '').toString().trim().toLowerCase();
+    for (let i = 0; i < row.length; i++) {
+      const value = (row[i] || '').toString().trim().toLowerCase();
       const label = labels[i] || "";
 
-      if (!label) return;
+      if (!label) continue;
 
       if (value === "specialty") {
         specialties.push(label);
       } else if (value === "able/willing to see") {
         ableWilling.push(label);
       }
-    });
+    }
 
-    return [
-      specialties.join(', '),   // K: Specialties
-      ableWilling.join(', ')    // L: Able/Willing to see
-    ];
-  });
-
-  // Remove trailing empty rows
-  while (output.length > 0 && output[output.length - 1].every(v => v === '')) {
-    output.pop();
+    output.push([
+      specialties.join(', '),     // Columna K (Specialties)
+      ableWilling.join(', ')      // Columna L (Able/Willing to see)
+    ]);
   }
 
-  if (output.length === 0) {
-    console.log("No conditions found");
-    return;
+  // Escribir en la hoja 'providers bio' (columnas K=11 y L=12, empezando en fila 3)
+  if (output.length > 0) {
+    providersSheet.getRange(3, 11, output.length, 2).setValues(output);
+    console.log(`✅ Escrito correctamente ${output.length} filas en columnas K y L`);
+  } else {
+    console.log("No se generaron datos de condiciones");
   }
+}
 
-  console.log(`Writing ${output.length} rows to K & L`);
-
-  // Write to K (11) and L (12), starting row 3
-  providersSheet.getRange(3, 11, output.length, 2).setValues(output);
+/** Helper: Obtiene la última fila con datos en una columna específica */
+function getLastRowWithData_(sheet, column) {
+  const maxRows = sheet.getMaxRows();
+  const values = sheet.getRange(2, column, maxRows - 1, 1).getValues().flat();
+  
+  for (let i = values.length - 1; i >= 0; i--) {
+    if (values[i] !== '' && values[i] != null) {
+      return i + 2;
+    }
+  }
+  return 1;
 }
