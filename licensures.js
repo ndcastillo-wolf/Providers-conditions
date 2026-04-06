@@ -140,88 +140,108 @@ function normalizeLicenseStatus() {
   }
 }
 
-// ── Mark license as expired ──────────────────────────────────
+// ── Mark license status (Active / EXPIRED / REQUESTED) ───────
 
-function promptMarkLicenseExpired() {
+function promptMarkLicenseStatus() {
   const ui = SpreadsheetApp.getUi();
 
+  // Step 1: state(s)
   const stateResp = ui.prompt(
-    "Mark License Expired",
-    "Enter full state name (case insensitive):\n(e.g. Alabama, California, New York)",
+    "Mark License Status — Step 1 of 3",
+    "Enter state name(s), comma-separated for multiple:\n(e.g.  California  or  California, Colorado, Kentucky)",
     ui.ButtonSet.OK_CANCEL
   );
   if (stateResp.getSelectedButton() !== ui.Button.OK) return;
-  const stateName = stateResp.getResponseText().trim();
+  const statesInput = stateResp.getResponseText().trim();
+  if (!statesInput) { ui.alert("No state entered. Nothing done."); return; }
 
+  // Step 2: status
+  const statusResp = ui.prompt(
+    "Mark License Status — Step 2 of 3",
+    "Enter the new status:\n  1 → Active\n  2 → EXPIRED\n  3 → REQUESTED",
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (statusResp.getSelectedButton() !== ui.Button.OK) return;
+  const statusInput = statusResp.getResponseText().trim();
+
+  const VALID_STATUSES = { '1': 'Active', '2': 'EXPIRED', '3': 'REQUESTED',
+                           'active': 'Active', 'expired': 'EXPIRED', 'requested': 'REQUESTED' };
+  const status = VALID_STATUSES[statusInput.toLowerCase()];
+
+  if (!status) {
+    ui.alert(`Invalid status: "${statusInput}"\nEnter 1, 2, 3 or type Active / EXPIRED / REQUESTED`);
+    return;
+  }
+
+  // Step 3: email
   const emailResp = ui.prompt(
-    "Mark License Expired",
+    "Mark License Status — Step 3 of 3",
     "Enter provider email:",
     ui.ButtonSet.OK_CANCEL
   );
   if (emailResp.getSelectedButton() !== ui.Button.OK) return;
   const email = emailResp.getResponseText().trim();
+  if (!email) { ui.alert("No email entered. Nothing done."); return; }
 
-  markLicenseAsExpired(stateName, email);
+  const stateNames = statesInput.split(',').map(s => s.trim()).filter(Boolean);
+  markLicenseStatus(stateNames, status, email);
 }
 
-function markLicenseAsExpired(stateName, email) {
-  if (!stateName || !email) {
-    SpreadsheetApp.getUi().alert("State name and email are required.");
-    return;
-  }
-
-  const inputState = stateName.toLowerCase().trim();
-  email = email.trim().toLowerCase();
-
-  const ss           = SpreadsheetApp.getActiveSpreadsheet();
-  const cleanSheet   = ss.getSheetByName('clean data');
-  const condSheet    = ss.getSheetByName('Conditions');
+function markLicenseStatus(stateNames, status, email) {
+  const ss         = SpreadsheetApp.getActiveSpreadsheet();
+  const cleanSheet = ss.getSheetByName('clean data');
+  const condSheet  = ss.getSheetByName('Conditions');
 
   if (!cleanSheet || !condSheet) {
     SpreadsheetApp.getUi().alert("Sheet 'clean data' or 'Conditions' not found.");
     return;
   }
 
+  // Load state name list from Conditions sheet
   const states = condSheet.getRange("G5:G55").getValues().flat()
-    .map(v => v ? v.toString().trim() : "")
-    .filter(v => v !== "");
+    .map(v => (v || "").toString().trim())
+    .filter(Boolean);
 
   if (states.length === 0) {
     SpreadsheetApp.getUi().alert("No state names found in Conditions!G5:G55");
     return;
   }
 
-  let stateIndex = states.findIndex(s => s.toLowerCase() === inputState);
-
-  if (stateIndex === -1) {
-    SpreadsheetApp.getUi().alert(`State "${stateName}" not found in Conditions!G5:G55`);
-    return;
-  }
-
-  const targetColumn = 12 + stateIndex; // L = 12 → Alabama (index 0)
-
+  // Find provider row by email
   const lastRow     = cleanSheet.getLastRow();
-  const emailValues = cleanSheet.getRange(2, 5, lastRow - 1, 1).getValues().flat();
+  const emailValues = cleanSheet.getRange(2, COL.EMAIL, lastRow - 1, 1).getValues().flat();
+  const providerIdx = emailValues.findIndex(e => (e || "").toString().trim().toLowerCase() === email.trim().toLowerCase());
 
-  let targetRow = emailValues.findIndex(e => (e || "").toString().trim().toLowerCase() === email);
-
-  if (targetRow === -1) {
+  if (providerIdx === -1) {
     SpreadsheetApp.getUi().alert(`Provider email not found: ${email}`);
     return;
   }
 
-  targetRow += 2; // adjust for header row and 0-based index
+  const targetRow = providerIdx + 2; // +2: header row + 0-based index
 
-  cleanSheet.getRange(targetRow, targetColumn).setValue("EXPIRED");
+  // Apply status to each requested state
+  const applied  = [];
+  const notFound = [];
 
-  SpreadsheetApp.getUi().alert(
-    `Success: License marked as EXPIRED\n` +
-    `Provider: ${email}\n` +
-    `State: ${states[stateIndex]}\n` +
-    `Cell: row ${targetRow}, column ${targetColumn}`
-  );
+  stateNames.forEach(stateName => {
+    const stateIndex = states.findIndex(s => s.toLowerCase() === stateName.toLowerCase().trim());
 
-  console.log(`EXPIRED set: row ${targetRow}, col ${targetColumn}, state ${states[stateIndex]}, email ${email}`);
+    if (stateIndex === -1) {
+      notFound.push(stateName);
+      return;
+    }
+
+    const targetCol = COL.LICENSE_START + stateIndex;
+    cleanSheet.getRange(targetRow, targetCol).setValue(status);
+    applied.push(states[stateIndex]);
+    console.log(`${status} set: row ${targetRow}, col ${targetCol}, state ${states[stateIndex]}, email ${email}`);
+  });
+
+  // Summary alert
+  let msg = "";
+  if (applied.length > 0)  msg += `✅ Set to ${status}:\n${applied.join(', ')}\n\nProvider: ${email}`;
+  if (notFound.length > 0) msg += `\n\n⚠️ States not found (check spelling):\n${notFound.join(', ')}`;
+  SpreadsheetApp.getUi().alert(msg || "Nothing was updated.");
 }
 
 // ── Write active states to providers bio ────────────────────

@@ -22,7 +22,7 @@ function onOpen() {
 
     .addItem('*Licensures', 'dummy')
     .addItem('   🪪 Update New Licensures settings', 'runProcessLicensuresUpdates')
-    .addItem('   ⚠️ Mark License EXPIRED', 'runPromptMarkLicenseExpired')
+    .addItem('   ⚠️ Mark License Status', 'runPromptMarkLicenseStatus')
 
     .addSeparator()
 
@@ -62,8 +62,8 @@ function runProcessLicensuresUpdates() {
   processLicensuresUpdates();
 }
 
-function runPromptMarkLicenseExpired() {
-  promptMarkLicenseExpired();
+function runPromptMarkLicenseStatus() {
+  promptMarkLicenseStatus();
 }
 
 function runProcessConditionsUpdates() {
