@@ -16,15 +16,15 @@ const COL = {
 
   // Conditions / specialties  (BK : FA)
   CONDITIONS_START:   63,  // BK
-  CONDITIONS_END:     157, // FA
-  CONDITIONS_COUNT:   95,  // FA - BK + 1
+  CONDITIONS_END:     158, // FB
+  CONDITIONS_COUNT:   96,  // FA - BK + 1
 
   // Weekly schedule  (FC : FI)
-  SCHEDULE_START:     159, // FC
+  SCHEDULE_START:     160, // FD
   SCHEDULE_COUNT:     7,   // Mon – Sun
 
   // Availability status
-  AVAILABILITY:       175, // FS
+  AVAILABILITY:       176, // FT
 };
 
 // ── providers bio output columns ─────────────────────────────
