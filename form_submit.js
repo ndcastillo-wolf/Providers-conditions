@@ -161,7 +161,7 @@ function backfillFormResponses() {
   const rowsToAdd = [];
   let assignedIds = [];
   let skippedCount = 0;
-  const availabilityCol = 175; // Column FS
+  const availabilityCol = COL.AVAILABILITY;
 
   sourceData.forEach((response, index) => {
     const emailColIndex = getTargetCol("email");

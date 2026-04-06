@@ -17,7 +17,7 @@ function processHoldRequests() {
   const FORM_RESULT_COL     = 8;   // H — result/status column
 
   const TARGET_ID_COL           = 5;   // E (email match in clean data)
-  const TARGET_AVAILABILITY_COL = 175; // FS
+  const TARGET_AVAILABILITY_COL = COL.AVAILABILITY;
 
   const formSheet   = ss.getSheetByName(FORM_SHEET_NAME);
   const targetSheet = ss.getSheetByName(TARGET_SHEET_NAME);
@@ -111,8 +111,8 @@ function promptAndLiftHold() {
   }
 
   const data       = sheet.getDataRange().getValues();
-  const idColIndex = 5 - 1;   // column E, 0-based
-  const statusCol  = 175;     // column FS
+  const idColIndex = COL.EMAIL - 1;
+  const statusCol  = COL.AVAILABILITY;
 
   let foundRow = -1;
   for (let i = 1; i < data.length; i++) {
@@ -173,8 +173,8 @@ function performSetHold(ss, email, ui = null) {
   }
 
   const data       = sheet.getDataRange().getValues();
-  const idColIndex = 5 - 1;  // column E, 0-based
-  const statusCol  = 175;    // column FS
+  const idColIndex = COL.EMAIL - 1;
+  const statusCol  = COL.AVAILABILITY;
 
   let foundRow = -1;
   for (let i = 1; i < data.length; i++) {

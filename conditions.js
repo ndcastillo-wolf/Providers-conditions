@@ -17,7 +17,7 @@ function processConditionsUpdates() {
   const FORM_FIRST_COND   = 4;   // D
 
   const TARGET_ID_COL         = 5;  // E
-  const TARGET_FIRST_COND_COL = 63; // First condition column in clean data
+  const TARGET_FIRST_COND_COL = COL.CONDITIONS_START;
 
   const formSheet   = ss.getSheetByName(FORM_SHEET_NAME);
   const targetSheet = ss.getSheetByName(TARGET_SHEET_NAME);
@@ -113,9 +113,8 @@ function generateConditionsToProvidersBio() {
 
   console.log(`Procesando filas 2 a ${lastRow} (${lastRow - 1} proveedores)`);
 
-  // ── Adjust these if columns shift ──
-  const firstConditionCol = 68;  // Column BP
-  const numConditionCols  = 90;
+  const firstConditionCol = COL.CONDITIONS_START;
+  const numConditionCols  = COL.CONDITIONS_COUNT;
 
   const data = cleanSheet.getRange(2, firstConditionCol, lastRow - 1, numConditionCols).getValues();
 
@@ -146,7 +145,7 @@ function generateConditionsToProvidersBio() {
   }
 
   if (output.length > 0) {
-    providersSheet.getRange(3, 11, output.length, 2).setValues(output);
+    providersSheet.getRange(3, BIO_COL.SPECIALTIES, output.length, 2).setValues(output);
     console.log(`✅ Escrito correctamente ${output.length} filas en columnas K y L`);
   } else {
     console.log("No se generaron datos de condiciones");

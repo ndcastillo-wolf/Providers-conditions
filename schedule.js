@@ -17,8 +17,8 @@ function getWeeklyAvailability() {
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   const lastRow    = cleanSheet.getLastRow();
-  const firstCol   = 159; // FC
-  const numCols    = 7;   // FC:FI
+  const firstCol = COL.SCHEDULE_START;
+  const numCols  = COL.SCHEDULE_COUNT;
 
   const availabilityData = cleanSheet.getRange(2, firstCol, lastRow - 1, numCols).getValues();
 
@@ -41,10 +41,10 @@ function getWeeklyAvailability() {
 
   const providersLastRow = providersSheet.getLastRow();
   if (providersLastRow >= 2) {
-    providersSheet.getRange(3, 5, providersLastRow - 1, 1).clearContent();
+    providersSheet.getRange(3, BIO_COL.WEEKLY_AVAIL, providersLastRow - 1, 1).clearContent();
   }
 
-  providersSheet.getRange(3, 5, output.length, 1).setValues(output);
+  providersSheet.getRange(3, BIO_COL.WEEKLY_AVAIL, output.length, 1).setValues(output);
 
   console.log(`✅ Wrote ${output.length} rows to column E of 'providers bio'`);
 }

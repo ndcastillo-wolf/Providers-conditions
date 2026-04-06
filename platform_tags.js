@@ -20,31 +20,31 @@ function refreshAllPlatforms() {
       name:      "Healthprofs",
       sheetName: "conditions",
       range:     "C2:D134",
-      outputCol: 18
+      outputCol: BIO_COL.HEALTHPROFS
     },
     {
       name:      "Healthgrades",
       sheetName: "conditions healthgrades",
       range:     "A2:B71",
-      outputCol: 19
+      outputCol: BIO_COL.HEALTHGRADES
     },
     {
       name:      "Zocdoc",
       sheetName: "conditions zocdoc",
       range:     "A2:B121",
-      outputCol: 20
+      outputCol: BIO_COL.ZOCDOC
     },
     {
       name:      "Webmd",
       sheetName: "conditions webmd",
       range:     "A2:B94",
-      outputCol: 21
+      outputCol: BIO_COL.WEBMD
     },
     {
       name:      "Healthie",
       sheetName: "conditions healthie",
       range:     "A2:B128",
-      outputCol: 22
+      outputCol: BIO_COL.HEALTHIE
     },
   ];
 

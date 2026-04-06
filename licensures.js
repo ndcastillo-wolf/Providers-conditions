@@ -17,7 +17,7 @@ function processLicensuresUpdates() {
   const FORM_FIRST_COND   = 4;  // D
 
   const TARGET_ID_COL             = 5;  // E
-  const TARGET_FIRST_LICENSE_COL  = 12; // L — first licensure column
+  const TARGET_FIRST_LICENSE_COL  = COL.LICENSE_START;
 
   const formSheet   = ss.getSheetByName(FORM_SHEET_NAME);
   const targetSheet = ss.getSheetByName(TARGET_SHEET_NAME);
@@ -94,8 +94,8 @@ function normalizeLicenseStatus() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   const TARGET_SHEET_NAME  = "clean data";
-  const FIRST_LICENSE_COL  = 12; // L
-  const LAST_LICENSE_COL   = 50; // Adjust to actual last licensure column
+  const FIRST_LICENSE_COL  = COL.LICENSE_START;
+  const LAST_LICENSE_COL   = COL.LICENSE_END;
 
   const sheet = ss.getSheetByName(TARGET_SHEET_NAME);
   if (!sheet) {
@@ -237,8 +237,8 @@ function addActiveStatesToProvidersHealthprof() {
     return;
   }
 
-  const STATE_START_COL = 12; // L
-  const STATE_END_COL   = 62; // BJ
+  const STATE_START_COL = COL.LICENSE_START;
+  const STATE_END_COL   = COL.LICENSE_END;
 
   const stateToCode = {
     "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
@@ -301,14 +301,14 @@ function addActiveStatesToProvidersHealthprof() {
   const lastTargetRow = targetSheet.getLastRow();
 
   if (lastTargetRow >= 3) {
-    targetSheet.getRange(3, 9, lastTargetRow - 2, 1).clearContent(); // clear column I
+    targetSheet.getRange(3, BIO_COL.ACTIVE_STATES, lastTargetRow - 2, 1).clearContent();
   }
 
   let updatesCount = 0;
   for (let row = 1; row < targetData.length; row++) {
     const keyValue = targetData[row][0]?.toString().trim(); // column A
     if (keyValue && activeStatesMap.hasOwnProperty(keyValue)) {
-      targetSheet.getRange(row + 1, 9).setValue(activeStatesMap[keyValue]);
+      targetSheet.getRange(row + 1, BIO_COL.ACTIVE_STATES).setValue(activeStatesMap[keyValue]);
       updatesCount++;
     }
   }
