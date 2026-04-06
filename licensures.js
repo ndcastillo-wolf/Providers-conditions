@@ -173,21 +173,22 @@ function promptMarkLicenseStatus() {
     return;
   }
 
-  // Step 3: email
+  // Step 3: email(s)
   const emailResp = ui.prompt(
     "Mark License Status — Step 3 of 3",
-    "Enter provider email:",
+    "Enter provider email(s), comma-separated for multiple:\n(e.g.  provider@healthloft.com  or  jane@healthloft.com, john@healthloft.com)",
     ui.ButtonSet.OK_CANCEL
   );
   if (emailResp.getSelectedButton() !== ui.Button.OK) return;
-  const email = emailResp.getResponseText().trim();
-  if (!email) { ui.alert("No email entered. Nothing done."); return; }
+  const emailsInput = emailResp.getResponseText().trim();
+  if (!emailsInput) { ui.alert("No email entered. Nothing done."); return; }
 
   const stateNames = statesInput.split(',').map(s => s.trim()).filter(Boolean);
-  markLicenseStatus(stateNames, status, email);
+  const emails     = emailsInput.split(',').map(e => e.trim()).filter(Boolean);
+  markLicenseStatus(stateNames, status, emails);
 }
 
-function markLicenseStatus(stateNames, status, email) {
+function markLicenseStatus(stateNames, status, emails) {
   const ss         = SpreadsheetApp.getActiveSpreadsheet();
   const cleanSheet = ss.getSheetByName('clean data');
   const condSheet  = ss.getSheetByName('Conditions');
@@ -197,7 +198,7 @@ function markLicenseStatus(stateNames, status, email) {
     return;
   }
 
-  // Load state name list from Conditions sheet
+  // Resolve state names → column indices once (shared across all providers)
   const states = condSheet.getRange("G5:G55").getValues().flat()
     .map(v => (v || "").toString().trim())
     .filter(Boolean);
@@ -207,41 +208,54 @@ function markLicenseStatus(stateNames, status, email) {
     return;
   }
 
-  // Find provider row by email
-  const lastRow     = cleanSheet.getLastRow();
-  const emailValues = cleanSheet.getRange(2, COL.EMAIL, lastRow - 1, 1).getValues().flat();
-  const providerIdx = emailValues.findIndex(e => (e || "").toString().trim().toLowerCase() === email.trim().toLowerCase());
-
-  if (providerIdx === -1) {
-    SpreadsheetApp.getUi().alert(`Provider email not found: ${email}`);
-    return;
-  }
-
-  const targetRow = providerIdx + 2; // +2: header row + 0-based index
-
-  // Apply status to each requested state
-  const applied  = [];
-  const notFound = [];
+  const resolvedStates = [];
+  const statesNotFound = [];
 
   stateNames.forEach(stateName => {
-    const stateIndex = states.findIndex(s => s.toLowerCase() === stateName.toLowerCase().trim());
+    const idx = states.findIndex(s => s.toLowerCase() === stateName.toLowerCase().trim());
+    if (idx === -1) statesNotFound.push(stateName);
+    else resolvedStates.push({ name: states[idx], col: COL.LICENSE_START + idx });
+  });
 
-    if (stateIndex === -1) {
-      notFound.push(stateName);
+  // Load all emails from clean data once
+  const lastRow     = cleanSheet.getLastRow();
+  const emailValues = cleanSheet.getRange(2, COL.EMAIL, lastRow - 1, 1).getValues().flat();
+
+  const providersNotFound = [];
+  const providerSummaries = [];
+
+  emails.forEach(email => {
+    const providerIdx = emailValues.findIndex(
+      e => (e || "").toString().trim().toLowerCase() === email.toLowerCase()
+    );
+
+    if (providerIdx === -1) {
+      providersNotFound.push(email);
       return;
     }
 
-    const targetCol = COL.LICENSE_START + stateIndex;
-    cleanSheet.getRange(targetRow, targetCol).setValue(status);
-    applied.push(states[stateIndex]);
-    console.log(`${status} set: row ${targetRow}, col ${targetCol}, state ${states[stateIndex]}, email ${email}`);
+    const targetRow = providerIdx + 2;
+
+    resolvedStates.forEach(({ name, col }) => {
+      cleanSheet.getRange(targetRow, col).setValue(status);
+      console.log(`${status} set: row ${targetRow}, col ${col}, state ${name}, email ${email}`);
+    });
+
+    if (resolvedStates.length > 0) {
+      providerSummaries.push(email);
+    }
   });
 
-  // Summary alert
-  let msg = "";
-  if (applied.length > 0)  msg += `✅ Set to ${status}:\n${applied.join(', ')}\n\nProvider: ${email}`;
-  if (notFound.length > 0) msg += `\n\n⚠️ States not found (check spelling):\n${notFound.join(', ')}`;
-  SpreadsheetApp.getUi().alert(msg || "Nothing was updated.");
+  // Build summary alert
+  const lines = [];
+  if (providerSummaries.length > 0)
+    lines.push(`✅ Set to ${status} — ${resolvedStates.map(s => s.name).join(', ')}\n${providerSummaries.join('\n')}`);
+  if (statesNotFound.length > 0)
+    lines.push(`⚠️ States not found (check spelling):\n${statesNotFound.join(', ')}`);
+  if (providersNotFound.length > 0)
+    lines.push(`⚠️ Providers not found (check email):\n${providersNotFound.join('\n')}`);
+
+  SpreadsheetApp.getUi().alert(lines.join('\n\n') || "Nothing was updated.");
 }
 
 // ── Write active states to providers bio ────────────────────
