@@ -137,6 +137,15 @@ function backfillFormResponses() {
     return idx !== -1 ? idx + 1 : null;
   }
 
+  // Build form header → column index map from the responses sheet row 1.
+  // This lets us look up any Clean Data header by name instead of counting positions.
+  const formHeaders = sourceSheet.getRange(1, 1, 1, sourceSheet.getLastColumn()).getValues()[0];
+  const formHeaderIndex = {};
+  formHeaders.forEach((h, i) => {
+    const key = normalize(h);
+    if (key) formHeaderIndex[key] = i;
+  });
+
   const noLicenseRequiredStates = new Set([
     "Alaska", "Arizona", "California", "Colorado", "Connecticut", "Hawaii", "Idaho",
     "Indiana", "Massachusetts", "Michigan", "New Hampshire", "New Jersey", "New York",
@@ -214,31 +223,31 @@ function backfillFormResponses() {
       }
     }
 
-    const firstStateCol = getTargetCol("State Licensure [Alabama]");
-    if (firstStateCol) {
-      for (let i = 0; i < headers.length - firstStateCol + 1; i++) {
-        const targetIdx = firstStateCol - 1 + i;
-        const srcIdx = 12 + i;
+    // Name-based mapping for all patterned columns.
+    // Mirrors onFormSubmit — immune to form reordering or new questions added anywhere.
+    headers.forEach((header, targetIdx) => {
+      if (targetIdx === availabilityCol - 1) return;
 
-        let value = "";
-        if (srcIdx < response.length) {
-          value = (response[srcIdx] || "").toString().trim();
-        }
+      const isPatternHeader =
+        header.startsWith("State Licensure [") ||
+        header.startsWith("Ages Seen [")       ||
+        header.startsWith("Conditions Seen [") ||
+        header.startsWith("Approaches [");
 
-        if (!value) {
-          const header = headers[targetIdx];
-          const match = header.match(/\[(.+?)\]/);
-          const stateName = match ? match[1].trim() : "";
-          if (noLicenseRequiredStates.has(stateName)) {
-            value = "No license needed";
-          }
-        }
+      if (!isPatternHeader) return;
 
-        if (targetIdx !== availabilityCol - 1) {
-          newRow[targetIdx] = value;
-        }
+      const formIdx = formHeaderIndex[normalize(header)];
+      let value = formIdx !== undefined ? (response[formIdx] || "").toString().trim() : "";
+
+      // For states with no license requirement, fill the default if the form left it blank
+      if (!value && header.startsWith("State Licensure [")) {
+        const match = header.match(/\[(.+?)\]/);
+        const stateName = match ? match[1].trim() : "";
+        if (noLicenseRequiredStates.has(stateName)) value = "No license needed";
       }
-    }
+
+      newRow[targetIdx] = value;
+    });
 
     const tsCol = getTargetCol("Entry Timestamp");
     const srcCol = getTargetCol("Entry Source");
