@@ -18,32 +18,32 @@ function refreshAllPlatforms() {
   const platforms = [
     {
       name:      "Healthprofs",
-      sheetName: "conditions",
-      range:     "C2:D134",
+      sheetName: "conditions healthprofs",
+      range:     "A2:B180",
       outputCol: BIO_COL.HEALTHPROFS
     },
     {
       name:      "Healthgrades",
       sheetName: "conditions healthgrades",
-      range:     "A2:B71",
+      range:     "A2:B171",
       outputCol: BIO_COL.HEALTHGRADES
     },
     {
       name:      "Zocdoc",
       sheetName: "conditions zocdoc",
-      range:     "A2:B121",
+      range:     "A2:B160",
       outputCol: BIO_COL.ZOCDOC
     },
     {
       name:      "Webmd",
       sheetName: "conditions webmd",
-      range:     "A2:B94",
+      range:     "A2:B160",
       outputCol: BIO_COL.WEBMD
     },
     {
       name:      "Healthie",
       sheetName: "conditions healthie",
-      range:     "A2:B128",
+      range:     "A2:B160",
       outputCol: BIO_COL.HEALTHIE
     },
   ];
