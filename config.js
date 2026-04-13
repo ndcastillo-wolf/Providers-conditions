@@ -19,7 +19,7 @@ const COL = {
   CONDITIONS_END:     158, // FB
   CONDITIONS_COUNT:   96,  // FA - BK + 1
 
-  // Weekly schedule  (FC : FI)
+  // Weekly schedule  (FD : FJ) — header-based lookup preferred; these are fallbacks
   SCHEDULE_START:     160, // FD
   SCHEDULE_COUNT:     7,   // Mon – Sun
 

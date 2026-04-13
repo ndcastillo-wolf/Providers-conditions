@@ -6,7 +6,7 @@
 function getWeeklyAvailability() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  const cleanSheet    = ss.getSheetByName('clean data');
+  const cleanSheet     = ss.getSheetByName('clean data');
   const providersSheet = ss.getSheetByName('providers bio');
 
   if (!cleanSheet || !providersSheet) {
@@ -16,37 +16,71 @@ function getWeeklyAvailability() {
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  const lastRow    = cleanSheet.getLastRow();
-  const firstCol = COL.SCHEDULE_START;
-  const numCols  = COL.SCHEDULE_COUNT;
+  const cleanData  = cleanSheet.getDataRange().getValues();
+  if (cleanData.length < 2) return;
 
-  const availabilityData = cleanSheet.getRange(2, firstCol, lastRow - 1, numCols).getValues();
+  // Resolve day-of-week columns by header name so we're immune to column shifts.
+  // Falls back to COL.SCHEDULE_START + offset if a header isn't found.
+  const headers = cleanData[0];
+  const normalize = (s) => (s || "").toString().toLowerCase().replace(/\s+/g, " ").trim();
 
-  const output = availabilityData.map((row, index) => {
+  const dayColIndex = daysOfWeek.map((day, i) => {
+    const target = normalize(day);
+    const idx = headers.findIndex(h => normalize(h) === target);
+    if (idx === -1) {
+      console.warn(`⚠️ Header "${day}" not found in 'clean data'; falling back to positional column ${COL.SCHEDULE_START + i}`);
+      return COL.SCHEDULE_START - 1 + i;  // 0-indexed fallback
+    }
+    return idx;
+  });
+
+  // Build providerId → formatted schedule map (ID = column A, mirrors addActiveStatesToProvidersHealthprof).
+  const scheduleMap = {};
+  for (let row = 1; row < cleanData.length; row++) {
+    const providerId = (cleanData[row][0] || "").toString().trim();
+    if (!providerId) continue;
+
     const dayAvailability = [];
-    const rowNum = index + 2;
-
-    row.forEach((cell, i) => {
-      const times   = normalizeTimeSlots(cell);
-      const dayName = daysOfWeek[i];
-
+    dayColIndex.forEach((colIdx, dayNum) => {
+      const times = normalizeTimeSlots(cleanData[row][colIdx]);
       if (times.length > 0) {
-        dayAvailability.push(`${dayName}(${times.join(', ')})`);
-        console.log(`   → Row ${rowNum} | ${dayName}: ${times.join(', ')}`);
+        dayAvailability.push(`${daysOfWeek[dayNum]}(${times.join(', ')})`);
+        console.log(`   → ID ${providerId} | ${daysOfWeek[dayNum]}: ${times.join(', ')}`);
       }
     });
 
-    return [dayAvailability.join(', ')];
-  });
-
-  const providersLastRow = providersSheet.getLastRow();
-  if (providersLastRow >= 2) {
-    providersSheet.getRange(3, BIO_COL.WEEKLY_AVAIL, providersLastRow - 1, 1).clearContent();
+    scheduleMap[providerId] = dayAvailability.join(', ');
   }
 
-  providersSheet.getRange(3, BIO_COL.WEEKLY_AVAIL, output.length, 1).setValues(output);
+  // Clear existing column E values in providers bio, then write by matching column A (ID).
+  const providersData    = providersSheet.getDataRange().getValues();
+  const providersLastRow = providersSheet.getLastRow();
 
-  console.log(`✅ Wrote ${output.length} rows to column E of 'providers bio'`);
+  if (providersLastRow >= 3) {
+    providersSheet.getRange(3, BIO_COL.WEEKLY_AVAIL, providersLastRow - 2, 1).clearContent();
+  }
+
+  let writes = 0;
+  const missing = [];
+
+  for (let row = 2; row < providersData.length; row++) {  // providers bio data starts at row 3 (index 2)
+    const providerId = (providersData[row][0] || "").toString().trim();
+    if (!providerId) continue;
+
+    if (Object.prototype.hasOwnProperty.call(scheduleMap, providerId)) {
+      providersSheet.getRange(row + 1, BIO_COL.WEEKLY_AVAIL).setValue(scheduleMap[providerId]);
+      writes++;
+    } else {
+      missing.push(providerId);
+    }
+  }
+
+  SpreadsheetApp.flush();
+
+  if (missing.length > 0) {
+    console.warn(`⚠️ ${missing.length} provider(s) in 'providers bio' had no matching ID in 'clean data': ${missing.join(", ")}`);
+  }
+  console.log(`✅ Wrote weekly availability for ${writes} provider(s) to column E of 'providers bio'`);
 }
 
 function normalizeTimeSlots(cell) {
