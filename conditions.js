@@ -16,7 +16,7 @@ function processConditionsUpdates() {
   const FORM_RESULT_COL   = 100; // CV
   const FORM_FIRST_COND   = 4;   // D
 
-  const TARGET_ID_COL         = 5;  // E
+  const TARGET_ID_COL         = COL.EMAIL;  // E
   const TARGET_FIRST_COND_COL = COL.CONDITIONS_START;
 
   const formSheet   = ss.getSheetByName(FORM_SHEET_NAME);
