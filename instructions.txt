@@ -1,0 +1,6 @@
+Take a look at the latest git changes, and please help me to debug the following issues: 
+
+
+- Conditions in providers bio are been properly read and added (generateConditionsToProvidersBio) but they're not being converted by the (processConditionsUpdates) to match the proper tagging for the platform. 
+  
+  My suspects are around this is an issue on how the functkons are being called, but it's just based on my observation and logic about the changes I remember we made here, but pelase help me to check and provide me a description before continue chaninging the code, thanks! 

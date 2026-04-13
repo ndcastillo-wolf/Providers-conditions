@@ -18,6 +18,7 @@ function processConditionsUpdates() {
 
   const TARGET_ID_COL         = COL.EMAIL;  // E
   const TARGET_FIRST_COND_COL = COL.CONDITIONS_START;
+  const TARGET_LAST_COND_COL  = COL.CONDITIONS_END;
 
   const formSheet   = ss.getSheetByName(FORM_SHEET_NAME);
   const targetSheet = ss.getSheetByName(TARGET_SHEET_NAME);
@@ -30,7 +31,36 @@ function processConditionsUpdates() {
   const formData   = formSheet.getDataRange().getValues();
   const targetData = targetSheet.getDataRange().getValues();
 
+  // Name-based column mapping — immune to form/target reordering or differing column counts.
+  // Mirrors the refactor applied to backfillFormResponses in form_submit.js.
+  function normalize(str) {
+    return (str || "")
+      .toString()
+      .toLowerCase()
+      .replace(/\u00A0/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  const formHeaders   = formData[0] || [];
+  const targetHeaders = targetData[0] || [];
+
+  // Build form-header → target-column map, restricted to the form's condition range
+  // and the clean data sheet's condition range.
+  const formToTargetCol = {};
+  for (let f = FORM_FIRST_COND - 1; f < FORM_APPROVAL_COL - 1; f++) {
+    const key = normalize(formHeaders[f]);
+    if (!key) continue;
+    for (let t = TARGET_FIRST_COND_COL - 1; t < TARGET_LAST_COND_COL; t++) {
+      if (normalize(targetHeaders[t]) === key) {
+        formToTargetCol[f] = t + 1;  // 1-indexed column
+        break;
+      }
+    }
+  }
+
   let updatedCount = 0;
+  const unmatchedHeaders = new Set();
 
   for (let i = 1; i < formData.length; i++) {
     const row      = i + 1;
@@ -60,15 +90,20 @@ function processConditionsUpdates() {
     }
 
     let rowUpdates = 0;
-    const formCondStart = FORM_FIRST_COND - 1;
 
-    for (let f = formCondStart; f < FORM_APPROVAL_COL - 1; f++) {
+    for (let f = FORM_FIRST_COND - 1; f < FORM_APPROVAL_COL - 1; f++) {
       const cellValue = (formData[i][f] || "").toString().trim();
-      if (cellValue !== "") {
-        const targetColIndex = TARGET_FIRST_COND_COL + (f - formCondStart);
-        targetSheet.getRange(providerRowIndex, targetColIndex).setValue(cellValue);
-        rowUpdates++;
+      if (cellValue === "") continue;
+
+      const targetCol = formToTargetCol[f];
+      if (!targetCol) {
+        const headerName = (formHeaders[f] || "").toString().trim();
+        if (headerName) unmatchedHeaders.add(headerName);
+        continue;
       }
+
+      targetSheet.getRange(providerRowIndex, targetCol).setValue(cellValue);
+      rowUpdates++;
     }
 
     if (rowUpdates > 0) {
@@ -77,6 +112,10 @@ function processConditionsUpdates() {
     } else {
       formSheet.getRange(row, FORM_RESULT_COL).setValue("⚠️ No conditions found");
     }
+  }
+
+  if (unmatchedHeaders.size > 0) {
+    Logger.log(`⚠️ Unmatched form headers (no column in clean data): ${Array.from(unmatchedHeaders).join(" | ")}`);
   }
 
   if (updatedCount > 0) {
