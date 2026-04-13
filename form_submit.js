@@ -153,6 +153,25 @@ function backfillFormResponses() {
     "Washington", "Wisconsin", "West Virginia", "Wyoming"
   ]);
 
+  // Exact clean-data headers whose values come from an identically-named form header.
+  const exactHeaders = new Set([
+    "Time Zone",
+    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+    "Any days/times that need to be blocked off in the first 60 days?",
+    "About (2-3 sentences)",
+    "Approach to Care (2-3 sentences)",
+    "What to Expect in Our First Session (2-3 sentences)",
+    "Education (1 sentence)",
+    "Hobbies/Interests (1-2 sentences)"
+  ]);
+
+  // Clean-data header → actual form header (different wording in the form).
+  const headerAliases = {
+    "years of experience": "Years of experience",
+    "discovery calls":     "Are you willing to conduct 15-minute discovery calls?",
+    "Medicare":            "Are you part of Medicare?"
+  };
+
   let nextId = 1;
   const idValues = targetSheet
     .getRange(2, 1, Math.max(1, targetSheet.getLastRow() - 1), 1)
@@ -223,7 +242,7 @@ function backfillFormResponses() {
       }
     }
 
-    // Name-based mapping for all patterned columns.
+    // Name-based mapping for all patterned + fixed-header columns.
     // Mirrors onFormSubmit — immune to form reordering or new questions added anywhere.
     headers.forEach((header, targetIdx) => {
       if (targetIdx === availabilityCol - 1) return;
@@ -234,9 +253,14 @@ function backfillFormResponses() {
         header.startsWith("Conditions Seen [") ||
         header.startsWith("Approaches [");
 
-      if (!isPatternHeader) return;
+      const isExactHeader = exactHeaders.has(header);
+      const aliasFormHeader = headerAliases[header];
 
-      const formIdx = formHeaderIndex[normalize(header)];
+      if (!isPatternHeader && !isExactHeader && !aliasFormHeader) return;
+
+      // Resolve which form header to read from.
+      const lookupKey = aliasFormHeader ? normalize(aliasFormHeader) : normalize(header);
+      const formIdx = formHeaderIndex[lookupKey];
       let value = formIdx !== undefined ? (response[formIdx] || "").toString().trim() : "";
 
       // For states with no license requirement, fill the default if the form left it blank
