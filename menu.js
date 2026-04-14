@@ -34,6 +34,11 @@ function onOpen() {
     .addItem('*Providers Bio', 'dummy')
     .addItem('   🔄 Refresh Platform Tags', 'runRefreshAllPlatforms')
 
+    .addSeparator()
+
+    .addItem('*Admin', 'dummy')
+    .addItem('   🔔 Install notification triggers', 'installNotificationTriggers')
+
     .addToUi();
 }
 

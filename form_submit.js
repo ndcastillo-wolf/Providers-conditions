@@ -95,8 +95,11 @@ function onFormSubmit(e) {
 
 // Run once manually to install the trigger
 function installTrigger() {
-  const triggers = ScriptApp.getProjectTriggers();
-  triggers.forEach(t => ScriptApp.deleteTrigger(t));
+  // Only remove existing onFormSubmit triggers — leaves notification triggers intact.
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'onFormSubmit')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+
   ScriptApp.newTrigger("onFormSubmit")
     .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
     .onFormSubmit()
